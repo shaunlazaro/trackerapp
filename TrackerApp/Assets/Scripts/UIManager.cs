@@ -52,6 +52,10 @@ public class UIManager : MonoBehaviour
         LockBluetoothUI(true);
     }
 
+    public void OnClickRefreshPorts()
+    {
+        RefreshBluetoothPortsDisplayed();
+    }
     public void OnClickBluetoothConnect()
     {
         LockBluetoothUI(false);

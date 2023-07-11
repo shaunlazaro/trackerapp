@@ -11,20 +11,15 @@ public class UIManager : MonoBehaviour
     public static UIManager Instance { get; private set; }
 
     [SerializeField]
-    TextMeshProUGUI portsList;
-    [SerializeField]
-    TMP_Dropdown portsSelector;
-
-    [SerializeField]
     TextMeshProUGUI status;
+    [SerializeField]
+    TextMeshProUGUI notificationText;
 
     public const string CONNECTED_STATUS_SUCCESS = "Connected";
     string statusConnection = "Not Connected";
     string statusLocation = "Not Connected";
-    
-    [SerializeField]
-    [Multiline]
-    string instructions;
+    string notificationString = "";
+
     [SerializeField]
     [Multiline]
     string noConnectionInstructions;
@@ -35,6 +30,8 @@ public class UIManager : MonoBehaviour
     Button bluetoothDisconnectButton;
     [SerializeField]
     Button gpsButton;
+    [SerializeField]
+    Button configureTrackerButton;
 
     private void Awake()
     {
@@ -47,19 +44,14 @@ public class UIManager : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        RefreshBluetoothPortsDisplayed();
-        UpdateStatus();
+        RefreshGUI();
         LockBluetoothUI(true);
     }
 
-    public void OnClickRefreshPorts()
-    {
-        RefreshBluetoothPortsDisplayed();
-    }
     public void OnClickBluetoothConnect()
     {
         LockBluetoothUI(false);
-        BluetoothManager.Instance.AttemptConnection(portsSelector.options[portsSelector.value].text);
+        BluetoothManager.Instance.AttemptConnection();
     }
     public void OnClickBluetoothDisconnect()
     {
@@ -67,22 +59,13 @@ public class UIManager : MonoBehaviour
     }
     public void OnClickInitLocation()
     {
-        if (!Location.Instance.initialized && !Location.Instance.initializing) 
+        if (!Location.Instance.initialized && !Location.Instance.initializing)
             StartCoroutine(Location.Instance.InitLocation());
     }
-
-    public void RefreshBluetoothPortsDisplayed()
+    public void OnClickSendLocation()
     {
-        string[] ports = SerialPort.GetPortNames();
-        string portDisplayText = "List Of Available Ports: ";
-        foreach (string port in ports) { portDisplayText += $"\n{port}"; }
-        portsList.text = portDisplayText;
-        portsSelector.ClearOptions();
-        List<string> optionsList = ports.ToList<string>();
-        optionsList.Insert(0, "Bluetooth Port:");
-        portsSelector.AddOptions(optionsList);
-        portsSelector.value = 0;
-        Debug.Log(portsSelector.options[0].text);
+        if(Location.Instance.initialized && BluetoothManager.Instance.Connected)
+            StartCoroutine(BluetoothManager.Instance.Send(Location.Instance.latitude.ToString()));
     }
 
     public void UpdateConnectionStatus(string statusText)
@@ -93,24 +76,39 @@ public class UIManager : MonoBehaviour
         else
             LockBluetoothUI(true);
 
-        UpdateStatus();
+        RefreshGUI();
     }
     public void UpdateLocationStatus(string statusText)
     {
         statusLocation = statusText;
-        UpdateStatus();
+        RefreshGUI();
+    }
+    public void UpdateNotification(string statusText)
+    {
+        notificationString = statusText;
+        RefreshGUI();
     }
 
     public void LockBluetoothUI(bool interactable)
     {
-        portsSelector.interactable = interactable;
         bluetoothButton.interactable = interactable;
-        bluetoothDisconnectButton.interactable = !interactable;
     }
 
-    public void UpdateStatus()
+    public void RefreshGUI()
     {
+        bool btConnected = statusConnection == CONNECTED_STATUS_SUCCESS;
+        bool locationConnected = statusLocation == CONNECTED_STATUS_SUCCESS;
+
+        string instructions = $"Please set the tilt angle to: {(locationConnected ? Location.Instance.latitude.ToString() : "NAN")}.\n" +
+            $"The red LED will turn off when the angle is acceptable.";
+
         status.text = $"Connection Status: {statusConnection}\nLocation Status: {statusLocation}\n\nInstructions:\n";
-        status.text += statusConnection == CONNECTED_STATUS_SUCCESS && statusLocation == CONNECTED_STATUS_SUCCESS ? instructions : noConnectionInstructions;
+        status.text += btConnected && locationConnected ? instructions : noConnectionInstructions;
+        notificationText.text = notificationString;
+
+        bluetoothDisconnectButton.interactable = btConnected;
+        gpsButton.interactable = !locationConnected;
+        // bluetoothButton.interactable = !btConnected; -> We don't do this because we lock while attempting to connect.
+        configureTrackerButton.interactable = btConnected && locationConnected;
     }
 }

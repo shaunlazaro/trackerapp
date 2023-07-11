@@ -95,7 +95,6 @@ public class AutoConnect : MonoBehaviour
 	{
 		if (!string.IsNullOrEmpty (dev.Name)) {
 			statusText.text = "Status : Can't find a device with the name '" + dev.Name + "', device might be OFF or not paird yet ";
-
 		} 
 	}
 	

@@ -42,12 +42,12 @@ void setup()
 
   // OPTIONAL: This waits for a message to be received from the computer 
   //           before continuing. 
-  while(!ESPbt.available()) 
-    delay(50);
-  if (ESPbt.available()){  
-    Serial.write(ESPbt.read());  
-    Serial.print('\n');
-  }  
+  //while(!ESPbt.available()) 
+  //  delay(50);
+  // if (ESPbt.available()){  
+  //   Serial.write(ESPbt.read());  
+  //   Serial.print('\n');
+  // }  
 
   // register the callbacks defined above (most important: congestion)
   ESPbt.register_callback(BT_EventHandler);
@@ -55,7 +55,6 @@ void setup()
 
 void loop()
 {
-
   // This conditional will wait for 100 ms to pass before 
   // reporting to the computer 
   if (millis() - start >= 100){

@@ -1,3 +1,4 @@
+// Prereqs: GY521, AccelStepper
 #include "BluetoothSerial.h"
 #include <AccelStepper.h>
 #include "GY521.h"
@@ -110,7 +111,19 @@ void setup()
 void loop()
 {
   if(ESPbt.available())
-    Serial.print((char)ESPbt.read());
+  {
+    delay(100);
+    int msgLength = ESPbt.available();
+    char msgString[32];
+    for(int i = 0; i < msgLength; i++)
+    {
+      msgString[i] = (char)ESPbt.read();
+    }
+    msgString[msgLength] = '\0'; // Append a null
+    desiredAngle = atof(msgString);
+    Serial.print("Desired Angle Has Been Uploaded: ");
+    Serial.println(desiredAngle);
+  }
 
   // Accelerometer Read:
   sensor.read();

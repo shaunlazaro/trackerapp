@@ -4,12 +4,12 @@
 #include "GY521.h"
 
 // Pin Numbers:
-int in1 = 12;
+int in1 = 12; // Motor pins
 int in2 = 14;
 int in3 = 27;
 int in4 = 26;
-int ledg = 33;
-int ledr = 32;
+int ledg = 32; // Led pins
+int ledr = 33;
 int base = 5; // Controls transistor
 
 // Accelerometer:
@@ -18,6 +18,7 @@ float xTotal = 0;
 float yTotal = 0;
 int measureCount = 0;
 int desiredAngle = 20;
+bool desiredAngleInit = false;
 
 // LED:
 long blinkTimer = 0;
@@ -28,7 +29,9 @@ bool blinkToggle = true;
 AccelStepper stepper; // Defaults to AccelStepper::FULL4WIRE (4 pins) on 2, 3, 4, 5
                       // AccelStepper stepper(AccelStepper::FULL4WIRE, IN1, IN3, IN2, IN4) -> strange input pin order...
 long motorTimer = 0;
-long MOTOR_INTERVAL = 20000;
+long MOTOR_INTERVAL = 2000;
+long motorOnRatio = 10;
+bool motorOn = true;
 
 // BT:
 BluetoothSerial ESPbt;
@@ -57,6 +60,12 @@ void setup()
 {  
   Serial.begin(115200);
 
+  //Motor:
+  //stepper = AccelStepper(AccelStepper::FULL4WIRE, in1, in3, in2, in4);
+  stepper = AccelStepper(AccelStepper::FULL4WIRE, 12, 27, 14, 26);
+  stepper.setMaxSpeed(100);
+  stepper.setAcceleration(20);
+
   //Accelerometer:
   Wire.begin();
   delay(100);
@@ -82,13 +91,6 @@ void setup()
   digitalWrite(ledg, LOW);
   digitalWrite(ledr, LOW);
 
-  //Motor:
-  stepper = AccelStepper(AccelStepper::FULL4WIRE, in1, in3, in2, in4);
-  stepper.enableOutputs();
-  stepper.setMaxSpeed(100);
-  stepper.setAcceleration(20);
-  stepper.moveTo(500);
-
   // Bluetooth:
   readTimer = millis();
 
@@ -110,6 +112,7 @@ void setup()
 
 void loop()
 {
+  // Bluetooth Reading:
   if(ESPbt.available())
   {
     delay(100);
@@ -120,22 +123,47 @@ void loop()
       msgString[i] = (char)ESPbt.read();
     }
     msgString[msgLength] = '\0'; // Append a null
-    desiredAngle = atof(msgString);
-    Serial.print("Desired Angle Has Been Uploaded: ");
-    Serial.println(desiredAngle);
+    Serial.print("Recieved BT Message:");
+    Serial.println(msgString);
+
+    // Send "SET" from bluetooth to tell motor that the panel is flat.
+    if(strcmp(msgString, "SET") == 0)
+    {
+      Serial.print("Setting current position: ");
+      Serial.print(stepper.currentPosition());
+      Serial.println(" to position 0.");
+      stepper.setCurrentPosition(0);
+    }
+
+    // Reading desired angle
+    if(!desiredAngleInit)
+    {
+      desiredAngle = atof(msgString);
+      desiredAngleInit = true;
+      Serial.print("Desired Angle Has Been Uploaded: ");
+      Serial.println(desiredAngle);
+    }
+    else
+    {
+      float motorToPos = atof(msgString);
+      stepper.move(motorToPos);
+      Serial.print("Moving relative distance: ");
+      Serial.println(motorToPos);
+    }
   }
 
   // Accelerometer Read:
   sensor.read();
   float x = sensor.getAngleX(); // Tilt we care about
   float y = sensor.getAngleY(); // Indicates non-level surface
-  float z = sensor.getAngleZ(); // Not useful.
+  //float z = sensor.getAngleZ(); // Not useful.
   
   xTotal += x;
   yTotal += y;
   measureCount++;
 
   // Bluetooth Reporting: Send Current Orientation
+  // Change LED on report.
   if (millis() - readTimer >= READ_INTERVAL){
     if (!cong){
       // Include message to send here like so:
@@ -145,6 +173,8 @@ void loop()
       ESPbt.print(y);
       ESPbt.print("Time: ");
       ESPbt.println(String(millis()));
+      
+      Serial.println(stepper.currentPosition());
       measureCount = 0;
       xTotal = 0;
       yTotal = 0;
@@ -161,15 +191,44 @@ void loop()
     readTimer = millis();
   }
 
-  if (millis() - motorTimer >= MOTOR_INTERVAL){
-    stepper.enableOutputs();
-    stepper.moveTo(-stepper.currentPosition());
-    delay(100);
 
-    motorTimer = millis();
-  }
-  else if (stepper.distanceToGo() == 0)
+  // Motor:
+  if(motorOn)
   {
-    //stepper.disableOutputs();
+    stepper.run();
+    if ((millis() - motorTimer) / motorOnRatio >= MOTOR_INTERVAL){
+      motorOn = false;
+      motorTimer = millis();
+      stepper.disableOutputs();
+    }
   }
+  else
+  {
+    if (millis() - motorTimer >= MOTOR_INTERVAL){
+      motorOn = true;
+      motorTimer = millis();
+      stepper.enableOutputs();
+    }
+  }
+
+  if(Serial.available())
+  {
+    int msgLength = Serial.available();
+    char msgString[32];
+    for(int i = 0; i < msgLength; i++)
+    {
+      msgString[i] = (char)Serial.read();
+    }
+    msgString[msgLength] = '\0'; // Append a null
+    float motorTo = atof(msgString);
+    Serial.print("Moving to: ");
+    Serial.println(motorTo);
+    stepper.moveTo(motorTo);
+  }
+}
+
+
+float posFromAngle(float degrees)
+{
+
 }

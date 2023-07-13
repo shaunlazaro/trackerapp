@@ -32,6 +32,12 @@ public class UIManager : MonoBehaviour
     Button gpsButton;
     [SerializeField]
     Button configureTrackerButton;
+    [SerializeField]
+    Button moveMotorLeftButton;
+    [SerializeField]
+    Button moveMotorRightButton;
+    [SerializeField]
+    Button setMotorPosition0Button;
 
     private void Awake()
     {
@@ -67,6 +73,18 @@ public class UIManager : MonoBehaviour
         if(Location.Instance.initialized && BluetoothManager.Instance.Connected)
             StartCoroutine(BluetoothManager.Instance.Send(Location.Instance.latitude.ToString()));
     }
+    public void OnClickMoveMotorLeft()
+    {
+        StartCoroutine(BluetoothManager.Instance.Send("-25"));
+    }
+    public void OnClickMoveMotorRight()
+    {
+        StartCoroutine(BluetoothManager.Instance.Send("25"));
+    }
+    public void OnClickZeroMotorPosition()
+    {
+        StartCoroutine(BluetoothManager.Instance.Send("SET"));
+    }
 
     public void UpdateConnectionStatus(string statusText)
     {
@@ -100,7 +118,8 @@ public class UIManager : MonoBehaviour
         bool locationConnected = statusLocation == CONNECTED_STATUS_SUCCESS;
 
         string instructions = $"Please set the tilt angle to: {(locationConnected ? Location.Instance.latitude.ToString() : "NAN")}.\n" +
-            $"The red LED will turn off when the angle is acceptable.";
+            $"After clicking \"Upload Correct Angle,\" the red LED will turn off when the angle is acceptable.\n" +
+            $"Once the angle is acceptable, use the buttons to rotate the panel until it is flat, then click \"Calibrate Position\"";
 
         status.text = $"Connection Status: {statusConnection}\nLocation Status: {statusLocation}\n\nInstructions:\n";
         status.text += btConnected && locationConnected ? instructions : noConnectionInstructions;
@@ -110,5 +129,8 @@ public class UIManager : MonoBehaviour
         gpsButton.interactable = !locationConnected;
         // bluetoothButton.interactable = !btConnected; -> We don't do this because we lock while attempting to connect.
         configureTrackerButton.interactable = btConnected && locationConnected;
+        moveMotorLeftButton.interactable = btConnected && locationConnected;
+        moveMotorRightButton.interactable = btConnected && locationConnected;
+        setMotorPosition0Button.interactable = btConnected && locationConnected;
     }
 }

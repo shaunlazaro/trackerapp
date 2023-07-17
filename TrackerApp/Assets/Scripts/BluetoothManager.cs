@@ -25,8 +25,9 @@ public class BluetoothManager : MonoBehaviour
     {
         if(!Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH"))
             Permission.RequestUserPermission("android.permission.BLUETOOTH");
-        BluetoothAdapter.OnDeviceOFF += HandleOnDeviceOff;//This would mean a failure in connection! the reason might be that your remote device is OFF
 
+        BluetoothAdapter.OnConnected += (BluetoothDevice dev) => { UIManager.Instance.OnClickSendLocation(); };
+        BluetoothAdapter.OnDeviceOFF += HandleOnDeviceOff;//This would mean a failure in connection! the reason might be that your remote device is OFF
         BluetoothAdapter.OnDeviceNotFound += HandleOnDeviceNotFound; //Because connecting using the 'Name' property is just searching, the Plugin might not find it!(only for 'Name').
 
         arduino = new BluetoothDevice();

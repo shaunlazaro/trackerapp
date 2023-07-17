@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO.Ports;
@@ -84,6 +85,16 @@ public class UIManager : MonoBehaviour
     public void OnClickZeroMotorPosition()
     {
         StartCoroutine(BluetoothManager.Instance.Send("SET"));
+    }
+    public void OnClickSetTime()
+    {
+        StartCoroutine(SetTime());
+    }
+    IEnumerator SetTime()
+    {
+        StartCoroutine(BluetoothManager.Instance.Send("TIME"));
+        yield return new WaitForSeconds(1);
+        StartCoroutine(BluetoothManager.Instance.Send(((int)(DateTime.Now.Subtract(DateTime.Today).TotalMinutes)).ToString()));
     }
 
     public void UpdateConnectionStatus(string statusText)

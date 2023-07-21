@@ -1,4 +1,3 @@
-// Prereqs: GY521, AccelStepper
 #include "BluetoothSerial.h"
 #include <AccelStepper.h>
 #include "GY521.h"
@@ -42,7 +41,7 @@ bool blinkToggle = true;
 AccelStepper stepper; // Defaults to AccelStepper::FULL4WIRE (4 pins) on 2, 3, 4, 5
                       // AccelStepper stepper(AccelStepper::FULL4WIRE, IN1, IN3, IN2, IN4) -> strange input pin order...
 long motorTimer = 0;
-long MOTOR_INTERVAL = 6000;
+long MOTOR_INTERVAL = 60000;
 
 // BT:
 BluetoothSerial ESPbt;
@@ -213,8 +212,6 @@ double R_opt(double beta_ax, double az_ax, double el, double az, double limit = 
   return R;
 }
 
-
-
 // 
 // Program:
 //
@@ -265,20 +262,7 @@ void setup()
   readTimer = millis();
 
   ESPbt.begin("solar_tracker_prototype"); // Hardcoded in client to this name.
-
-  Serial.println("Waiting for Start Signal...");
-  // OPTIONAL: This waits for a message to be received from the computer 
-  //           before continuing. 
-  // while(!ESPbt.available()) 
-  //   delay(50);
-  // if (ESPbt.available()){  
-  //   Serial.write(ESPbt.read());  
-  //   Serial.print('\n');
-  // }  
-
-  // register the callbacks defined above (most important: congestion)
   ESPbt.register_callback(BT_EventHandler);
-
 
   // Pregenerate a list of angles for every 5 minutes.
   double beta_ax = 20.0;
@@ -386,6 +370,7 @@ void loop()
   float y = sensor.getAngleY(); // Indicates non-level surface
   //float z = sensor.getAngleZ(); // Not useful.
   
+  // Apply low pass filter (average) to remove noise.
   xTotal += x;
   yTotal += y;
   measureCount++;
@@ -415,8 +400,10 @@ void loop()
         output+= millis();
         output+= ":Current Position:";
         output+= stepper.currentPosition();
+        ESPbt.println(output);
+        digitalWrite(ledg, LOW);
       }
-      else if(stepper.currentPosition() == stepper.targetPosition())
+      else if((int)stepper.currentPosition() == (int)stepper.targetPosition())
       {        
         int currentMins = minsBaseline + (double)(millis()-millisBaseline) / 60000.0;
         output+=currentMins;
@@ -426,8 +413,11 @@ void loop()
         output+= stepper.currentPosition();
         output+= ",";
         output+= power_mW;
+        output+= ",";
+        output+= current_mA;
+        ESPbt.println(output);
+        digitalWrite(ledg, HIGH);
       }
-      ESPbt.println(output);
 
       measureCount = 0;
       xTotal = 0;
@@ -446,7 +436,7 @@ void loop()
   }
 
   // Motor:
-  if(stepper.currentPosition() == stepper.targetPosition())
+  if((int)stepper.currentPosition() == (int)stepper.targetPosition())
   {
     stepper.disableOutputs();
   }
@@ -465,7 +455,7 @@ void loop()
       if(stepper.currentPosition() == 0)
       {
         Serial.println(R_list[currentMins / 5] / 90.0 * 500.0);
-        stepper.moveTo(R_list[currentMins / 5] / 90.0 * 500.0);
+        stepper.moveTo((int)(R_list[currentMins / 5] / 90.0 * 500.0));
       }
       else
       {

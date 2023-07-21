@@ -18,7 +18,9 @@ public class BluetoothManager : MonoBehaviour
     }
 
     private BluetoothDevice arduino;
-    
+
+    public string filePath;
+
     public bool Connected { get => arduino != null && arduino.IsConnected; }
 
     void Start()
@@ -31,6 +33,12 @@ public class BluetoothManager : MonoBehaviour
         BluetoothAdapter.OnDeviceNotFound += HandleOnDeviceNotFound; //Because connecting using the 'Name' property is just searching, the Plugin might not find it!(only for 'Name').
 
         arduino = new BluetoothDevice();
+
+        string dateTag = DateTime.Now.ToString("MM-dd-yyyy_hh-mm-ss-tt");
+        filePath = System.IO.Path.Combine(Application.persistentDataPath, $"log_{dateTag}.csv");
+        UIManager.Instance.UpdateNotification($"Filepath: {filePath}");
+        System.IO.File.AppendAllText(filePath, "Time (min),Position,Power (mW)\n");
+        Debug.Log($"Printing to: {filePath}");
     }
 
     public void AttemptConnection()
@@ -77,6 +85,10 @@ public class BluetoothManager : MonoBehaviour
             {
                 string content = System.Text.ASCIIEncoding.ASCII.GetString(msg);
                 UIManager.Instance.UpdateNotification(content);
+                if(content.Split(',').Length >= 3) // Don't write incomplete lines.
+                {
+                    System.IO.File.AppendAllText(filePath, $"{content}\n");
+                }
             }
             yield return null;
         }
